@@ -17,6 +17,10 @@ import warnings
 
 warnings.filterwarnings("ignore",category=UserWarning)
 
+wavelengths_orig_path = '/Users/racicot.i/Library/CloudStorage/OneDrive-UniversityofCambridge/Data/PoM/EndoscopeVideo/20240501/Patches_Wavelengths.npz'
+reference_spectra_path = '/Users/racicot.i/Library/CloudStorage/OneDrive-UniversityofCambridge/References/ColourCharts/MacBeth/Micro_Nano_CheckerTargetData.xls'
+reference_rgb_path = '/Users/racicot.i/Library/CloudStorage/OneDrive-UniversityofCambridge/References/ColourCharts/MacBeth/Macbeth_Adobe.xlsx' 
+
 
 c1 = 'red'
 c2 = 'cornflowerblue'
@@ -33,9 +37,6 @@ class Action(Enum):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-
-
-
 
         self.setWindowTitle("Hypercube Visualizer")
         self.setGeometry(100, 100, 800, 700)  # Adjusted window width
@@ -190,20 +191,13 @@ class MainWindow(QMainWindow):
         self.rescale_spectra = 1
 
 
-
-    def resizeEvent(self, event):
-        new_size = event.size()
-        self.rgb_canvas.setGeometry(0, 0, int(new_size.width()/2), new_size.height() - 100)  # Adjust the height as needed
-        self.spectrum_canvas.setGeometry(int(new_size.width()/2), 0, int(new_size.width()/2), new_size.height() - 100)
-        # Adjust other widgets accordingly
-
     def load_hypercube(self):
         # Prompt user to select the hypercube file
         hypercube_path, _ = QFileDialog.getOpenFileName(self, "Select Hypercube File", "", "NPZ files (*.npz)")
         # # Load hypercube data
-        wavelengths_path = '/Users/racicot.i/Library/CloudStorage/OneDrive-UniversityofCambridge/Data/PoM/EndoscopeVideo/20240501/Patches_Wavelengths.npz'
-        self.reference_spectra_path = '/Users/racicot.i/Library/CloudStorage/OneDrive-UniversityofCambridge/References/ColourCharts/MacBeth/Micro_Nano_CheckerTargetData.xls'
-        self.reference_rgb_path = '/Users/racicot.i/Library/CloudStorage/OneDrive-UniversityofCambridge/References/ColourCharts/MacBeth/Macbeth_Adobe.xlsx'  
+        wavelengths_path = wavelengths_orig_path
+        self.reference_spectra_path = reference_spectra_path
+        self.reference_rgb_path = reference_rgb_path 
 
         if hypercube_path:
             hypercube = np.load(hypercube_path)['arr_0']
@@ -293,24 +287,91 @@ class MainWindow(QMainWindow):
             self.update_rgbplot(self.hypercube)
             self.update_spectraplot()
 
-    def rescale_image_button_clicked(self):
-        if self.rescale_image_box.text():
-            self.rescale_value = float(self.rescale_image_box.text())
-            self.update_rgbplot(self.hypercube)
+    
+    def construct_rgb_image(self):
+        # Code to reconstruct RGB image from hypercube
+        hypercube = self.hypercube
+        NN, YY, XX = hypercube.shape
 
-    def rescale_spectra_button_clicked(self):
-        if self.rescale_spectra_box.text():
-            self.rescale_spectra = float(self.rescale_spectra_box.text())
-            self.update_spectraplot()
+        ## Check which wavelengths the users wants to use for each channel
+        red_pos =self.red_wav_combo.currentIndex()
+        green_pos =self.green_wav_combo.currentIndex()
+        blue_pos =self.blue_wav_combo.currentIndex()
+
+        im_red = hypercube[red_pos, :,:]
+        im_green = hypercube[green_pos, :,:]
+        im_blue = hypercube[blue_pos, :,:]
+        imRGB = np.zeros((YY,XX,3))
+        for i in range(0,XX):
+            for j in range(0,YY):
+                imRGB[j,i,0] = im_red[j,i]
+                imRGB[j,i,1] = im_green[j,i]
+                imRGB[j,i,2] = im_blue[j,i]
+
+        rgb_image = imRGB
+        return rgb_image
+
+    def update_rgbplot(self, hypercube):
+        # Update the RGB image plot data instead of redrawing the canvas
+        rgb_image = self.construct_rgb_image()
+        if self.rescale_value != 1:
+            rgb_image = self.BrightenImage(rgb_image, self.rescale_value)
+
+        if self.rgb_image_plot is None:
+            self.rgb_image_plot = self.ax_rgb.imshow(rgb_image)
+        else:
+            self.rgb_image_plot.set_data(rgb_image)
+
+        self.ax_rgb.set_axis_off()
+        if self.rescale_value == 1:
+            self.ax_rgb.set_title('Simulated RGB image')
+        else:
+            self.ax_rgb.set_title(f'Simulated RGB image, rescaled {self.rescale_value}')
+        self.rgb_canvas.figure.tight_layout()
+
+        self.rgb_canvas.draw()
+
+        self.roi_rect1.set_visible(True)
+        self.roi_rect2.set_visible(True)
+
+
+    def calculate_roi_spectrum(self, roi_rect):
+        # Extract ROI coordinates
+        x, y = roi_rect.get_x(), roi_rect.get_y()
+        width, height = roi_rect.get_width(), roi_rect.get_height()
+
+        x, y = int(np.round(x, 0)), int(np.round(y, 0))
+        width, height = int(np.round(width, 0)), int(np.round(height, 0))
+        spectrum_roi = self.hypercube[:, y:y + height, x:x + width]
+
+        # Calculate the average spectrum
+        average_spectrum = np.mean(spectrum_roi, axis=(1, 2))
+        return average_spectrum
+
+
+    def display_wavelength_image(self):
+        # Display image corresponding to selected wavelength
+        selected_wavelength = float(self.selected_wavelength_combo.currentText())
+        idx = np.argmin(np.abs(self.wavelengths - selected_wavelength))
+        wavelength_image = self.hypercube[idx, :, :]
+
+        if self.wavelength_image_plot is None:
+            self.wavelength_image_plot = self.ax_rgb.imshow(wavelength_image, cmap='gray')
+        else:
+            self.wavelength_image_plot.set_data(wavelength_image)
+
+        self.ax_rgb.set_axis_off()
+        self.ax_rgb.set_title(f'Image at Wavelength {selected_wavelength}')
+        self.rgb_canvas.figure.tight_layout()
+        self.rgb_canvas.draw()
+
 
         
     def update_spectraplot(self):
         self.ax_spectrum.clear()
-
         # Plot selected reference patch spectrum
         if self.reference_spectra is not None:
             selected_patch_index = int(self.reference_patch_combo.currentIndex()) + 1
-            # print(f'Selected index: {selected_patch_index}')
             selected_patch_spectrum = self.reference_spectra[:, selected_patch_index]
             selected_patch_spectrumN = np.divide(selected_patch_spectrum, self.reference_spectra[:, self.Nwhite])
             selected_patch_wavelengths = self.reference_spectra[:, 0]
@@ -333,10 +394,39 @@ class MainWindow(QMainWindow):
         self.spectrum_canvas.draw()
 
 
+    ## Function to find the closest point in the dataset to a given value
     def find_closest(self, arr, val):
         idx = np.abs(arr - val).argmin()
         return idx
 
+
+    ## Handle rescale of the RGB image
+    def rescale_image_button_clicked(self):
+        if self.rescale_image_box.text():
+            self.rescale_value = float(self.rescale_image_box.text())
+            self.update_rgbplot(self.hypercube)
+
+    ## Handle rescale of the spectra
+    def rescale_spectra_button_clicked(self):
+        if self.rescale_spectra_box.text():
+            self.rescale_spectra = float(self.rescale_spectra_box.text())
+            self.update_spectraplot()
+
+    ## Rescale the RGB image
+    def BrightenImage(self, imRGB, Scale):
+        im0 = imRGB*Scale
+        pos = np.where(im0>1.0)
+        for k in range(0,len(pos[0])):
+            im0[pos[0][k], pos[1][k], pos[2][k]] = 1.0
+        return im0
+
+    ## Reszie figures as the GUI window is modified    
+    def resizeEvent(self, event):
+        new_size = event.size()
+        self.rgb_canvas.setGeometry(0, 0, int(new_size.width()/2), new_size.height() - 100)  # Adjust the height as needed
+        self.spectrum_canvas.setGeometry(int(new_size.width()/2), 0, int(new_size.width()/2), new_size.height() - 100)
+
+    ## Handle ROI resising and moving
     def on_press(self, event):
         x = event.xdata
         y = event.ydata
@@ -407,7 +497,6 @@ class MainWindow(QMainWindow):
                     self.rgb_canvas.draw()
 
 
-
     def on_release(self, event):
         self.dragging = False
         self.action = Action.NONE
@@ -415,143 +504,10 @@ class MainWindow(QMainWindow):
 
 
 
-    # def update_rgbplot(self, hypercube):
-    #     # Update the RGB image plot
-    #     rgb_image = self.construct_rgb_image()
-    #     if self.rescale_value!=1:
-    #         rgb_image = self.BrightenImage(rgb_image, self.rescale_value)
-
-    #     self.ax_rgb.imshow(rgb_image)
-    #     self.ax_rgb.set_axis_off()
-  
-    #     if self.rescale_value==1:
-    #         self.ax_rgb.set_title('Simulated RGB image')
-    #     else:
-    #         self.ax_rgb.set_title(f'Simulated RGB image, rescaled {self.rescale_value}')
-    #     self.rgb_canvas.figure.tight_layout()
-
-    #     self.rgb_canvas.draw()
-
-    #     self.roi_rect1.set_visible(True)
-    #     self.roi_rect2.set_visible(True)
-
-    def update_rgbplot(self, hypercube):
-        # Update the RGB image plot data instead of redrawing the canvas
-        rgb_image = self.construct_rgb_image()
-        if self.rescale_value != 1:
-            rgb_image = self.BrightenImage(rgb_image, self.rescale_value)
-
-        if self.rgb_image_plot is None:
-            self.rgb_image_plot = self.ax_rgb.imshow(rgb_image)
-        else:
-            self.rgb_image_plot.set_data(rgb_image)
-
-        self.ax_rgb.set_axis_off()
-        if self.rescale_value == 1:
-            self.ax_rgb.set_title('Simulated RGB image')
-        else:
-            self.ax_rgb.set_title(f'Simulated RGB image, rescaled {self.rescale_value}')
-        self.rgb_canvas.figure.tight_layout()
-
-        self.rgb_canvas.draw()
-
-        self.roi_rect1.set_visible(True)
-        self.roi_rect2.set_visible(True)
-
-
-    def RescaleRGB(self, imRGB, Nmax):
-        imflat = imRGB.flatten()
-        imsorted = np.sort(imflat)
-        N = len(imsorted)
-        MM = imsorted[N-Nmax]
-        imRGBnoneg = imRGB-np.amin(imRGB)
-        imRGBrescaled = imRGBnoneg/MM
-        if Crop:
-            pos = np.where(imRGBrescaled>1)
-            for i in range(0,len(pos[0])):
-                imRGBrescaled[pos[0][i],pos[1][i]] = 1
-        return imRGBrescaled
-
-    def BrightenImage(self, imRGB, Scale):
-        im0 = imRGB*Scale
-        pos = np.where(im0>1.0)
-        for k in range(0,len(pos[0])):
-            im0[pos[0][k], pos[1][k], pos[2][k]] = 1.0
-        return im0
-
-    def construct_rgb_image(self):
-        # Your code to reconstruct RGB image from hypercube
-        # For simplicity, let's just take the sum along the wavelength axis
-        hypercube = self.hypercube
-        NN, YY, XX = hypercube.shape
-
-        red_pos =self.red_wav_combo.currentIndex()
-        green_pos =self.green_wav_combo.currentIndex()
-        blue_pos =self.blue_wav_combo.currentIndex()
-
-        im_red = hypercube[red_pos, :,:]
-        im_green = hypercube[green_pos, :,:]
-        im_blue = hypercube[blue_pos, :,:]
-        imRGB = np.zeros((YY,XX,3))
-        for i in range(0,XX):
-            for j in range(0,YY):
-                imRGB[j,i,0] = im_red[j,i]
-                imRGB[j,i,1] = im_green[j,i]
-                imRGB[j,i,2] = im_blue[j,i]
-
-        rgb_image = imRGB
-        return rgb_image
-
-
-    def calculate_roi_spectrum(self, roi_rect):
-        # Extract ROI coordinates
-        x, y = roi_rect.get_x(), roi_rect.get_y()
-        width, height = roi_rect.get_width(), roi_rect.get_height()
-
-        x, y = int(np.round(x, 0)), int(np.round(y, 0))
-        width, height = int(np.round(width, 0)), int(np.round(height, 0))
-        spectrum_roi = self.hypercube[:, y:y + height, x:x + width]
-
-        # Calculate the average spectrum
-        average_spectrum = np.mean(spectrum_roi, axis=(1, 2))
-        return average_spectrum
-
-    # def display_wavelength_image(self):
-    #     # Display image corresponding to selected wavelength
-    #     selected_wavelength = float(self.selected_wavelength_combo.currentText())
-    #     idx = np.argmin(np.abs(self.wavelengths - selected_wavelength))
-    #     wavelength_image = self.hypercube[idx, :, :]
-    #     image_plot = self.ax_rgb.imshow(wavelength_image, cmap='gray') #, vmin=np.amin(self.hypercube), vmax=np.amax(self.hypercube)
-    #     self.ax_rgb.set_axis_off()
-    #     self.ax_rgb.set_title(f'Image at Wavelength {selected_wavelength}')
-    #     self.rgb_canvas.figure.tight_layout()
-    #     self.rgb_canvas.draw()
-
-    def display_wavelength_image(self):
-        # Display image corresponding to selected wavelength
-        selected_wavelength = float(self.selected_wavelength_combo.currentText())
-        idx = np.argmin(np.abs(self.wavelengths - selected_wavelength))
-        wavelength_image = self.hypercube[idx, :, :]
-
-        if self.wavelength_image_plot is None:
-            self.wavelength_image_plot = self.ax_rgb.imshow(wavelength_image, cmap='gray')
-        else:
-            self.wavelength_image_plot.set_data(wavelength_image)
-
-        self.ax_rgb.set_axis_off()
-        self.ax_rgb.set_title(f'Image at Wavelength {selected_wavelength}')
-        self.rgb_canvas.figure.tight_layout()
-        self.rgb_canvas.draw()
-
-    
-
-
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()
     sys.exit(app.exec_())
-
-
 
 
