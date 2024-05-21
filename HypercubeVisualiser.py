@@ -253,7 +253,7 @@ class MainWindow(QMainWindow):
             self.blue_wav_combo.addItems([str(wavelength) for wavelength in self.wavelengths])
             self.blue_wav_combo.setCurrentIndex(blue_pos)
 
-            self.update_rgbplot(self.hypercube)
+            self.update_rgbplot()
 
     def load_wavelengths(self):
         # Prompt user to select the wavelengths file
@@ -292,7 +292,7 @@ class MainWindow(QMainWindow):
             self.reference_rgb = reference_rgb
             self.Nwhite = 8
 
-            self.update_rgbplot(self.hypercube)
+            self.update_rgbplot()
             self.update_spectraplot()
 
     
@@ -319,13 +319,14 @@ class MainWindow(QMainWindow):
         rgb_image = imRGB
         return rgb_image
 
-    def update_rgbplot(self, hypercube):
+    def update_rgbplot(self):
         if self.hypercube is None or self.wavelengths is None:
             # print("Hypercube or wavelengths data not loaded.")
             return
 
         try:
             rgb_image = self.construct_rgb_image()
+            self.wavelength_image_plot = None
             if self.rescale_value != 1:
                 rgb_image = self.BrightenImage(rgb_image, self.rescale_value)
 
@@ -372,8 +373,10 @@ class MainWindow(QMainWindow):
 
         if self.wavelength_image_plot is None:
             self.wavelength_image_plot = self.ax_rgb.imshow(wavelength_image, cmap='gray')
+            self.rgb_image_plot = None
         else:
             self.wavelength_image_plot.set_data(wavelength_image)
+            self.rgb_image_plot = None
 
         self.ax_rgb.set_axis_off()
         self.ax_rgb.set_title(f'Image at Wavelength {selected_wavelength}')
@@ -433,7 +436,7 @@ class MainWindow(QMainWindow):
     def rescale_image_button_clicked(self):
         if self.rescale_image_box.text():
             self.rescale_value = float(self.rescale_image_box.text())
-            self.update_rgbplot(self.hypercube)
+            self.update_rgbplot()
 
     ## Handle rescale of the spectra
     def rescale_spectra_button_clicked(self):
