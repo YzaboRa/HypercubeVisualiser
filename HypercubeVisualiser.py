@@ -32,6 +32,7 @@ WavelengthsPlacement = np.array([400,420,440,460,480,500,520,540, 560,580,600,62
 
 c1 = 'red'
 c2 = 'cornflowerblue'
+c3 = 'darkviolet'
 
 class Action(Enum):
     NONE = 0
@@ -146,11 +147,19 @@ class MainWindow(QMainWindow):
         self.rescale_spectra_button = QPushButton("Rescale Spectra")
         rescale_spectra_layout.addWidget(self.rescale_spectra_button)
         self.rescale_spectra_button.clicked.connect(self.rescale_spectra_button_clicked)
+
+        self.divide_spectra = QCheckBox('red/blue')
+        rescale_spectra_layout.addWidget(self.divide_spectra)
+        self.divide_spectra.stateChanged.connect(self.checkbox_state_changed)
         
         self.rescale_spectra_box = QLineEdit()
         rescale_spectra_layout.addWidget(QLabel("Factor:"))
         rescale_spectra_layout.addWidget(self.rescale_spectra_box)
+
+
         ui_layout.addLayout(rescale_spectra_layout)
+
+
         
         refpatch_layout = QVBoxLayout()
         self.reference_patch_combo = QComboBox()
@@ -394,6 +403,9 @@ class MainWindow(QMainWindow):
         self.rgb_canvas.figure.tight_layout()
         self.rgb_canvas.draw()
 
+    def checkbox_state_changed(self, state):
+        self.update_spectraplot()
+
 
         
     def update_spectraplot(self):
@@ -420,12 +432,24 @@ class MainWindow(QMainWindow):
                 self.ax_spectrum.plot(selected_patch_wavelengths, selected_patch_spectrum2N, ls='solid', lw=5, color=cc2, alpha=1, label=f'Patch {selected_patch_index2}')
 
             # Plot ROI spectra
-            if self.roi_rect1.get_visible():
-                roi_spectrum1 = self.calculate_roi_spectrum(self.roi_rect1)
-                self.ax_spectrum.plot(self.wavelengths, roi_spectrum1*self.rescale_spectra, '.-', color=c1)
-            if self.roi_rect2.get_visible():
-                roi_spectrum2 = self.calculate_roi_spectrum(self.roi_rect2)
-                self.ax_spectrum.plot(self.wavelengths, roi_spectrum2*self.rescale_spectra, '.-', color=c2)
+            ## If we are plotting the division
+            if self.divide_spectra.isChecked():
+                if self.roi_rect1.get_visible():
+                    roi_spectrum1 = self.calculate_roi_spectrum(self.roi_rect1)
+                if self.roi_rect2.get_visible():
+                    roi_spectrum2 = self.calculate_roi_spectrum(self.roi_rect2)
+                    div = np.divide(roi_spectrum1, roi_spectrum2)
+                    # self.ax_spectrum.plot(self.wavelengths, roi_spectrum2*self.rescale_spectra, '.-', color=c1)
+                    self.ax_spectrum.plot(self.wavelengths, div*self.rescale_spectra, '.-', color=c3)
+
+            ## Or both boxed seperatly
+            else:
+                if self.roi_rect1.get_visible():
+                    roi_spectrum1 = self.calculate_roi_spectrum(self.roi_rect1)
+                    self.ax_spectrum.plot(self.wavelengths, roi_spectrum1*self.rescale_spectra, '.-', color=c1)
+                if self.roi_rect2.get_visible():
+                    roi_spectrum2 = self.calculate_roi_spectrum(self.roi_rect2)
+                    self.ax_spectrum.plot(self.wavelengths, roi_spectrum2*self.rescale_spectra, '.-', color=c2)
 
             self.ax_spectrum.set_xlabel("Wavelength")
             self.ax_spectrum.set_ylabel("Intensity")
