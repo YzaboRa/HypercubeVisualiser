@@ -8,6 +8,8 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 import numpy as np
+import matplotlib
+import PyQt5
 from matplotlib.patches import Rectangle
 from matplotlib.transforms import Bbox
 from enum import Enum
@@ -21,6 +23,11 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 
 
 WavelengthsPlacement = np.array([400,420,440,460,480,500,520,540, 560,580,600,620,640,660,680,700])
+
+# print(f"Matplotlib version: {matplotlib.__version__}")
+# print(f"Numpy version: {np.__version__}")
+# print(f"Pandas version: {pd.__version__}")
+# print(f"PyQt5 version: {PyQt5.QtCore.QT_VERSION_STR}")
 
 
 c1 = 'red'
@@ -352,6 +359,9 @@ class MainWindow(QMainWindow):
 
 
     def calculate_roi_spectrum(self, roi_rect):
+        if self.hypercube is None or self.wavelengths is None:
+            # print("Hypercube or wavelengths data not loaded.")
+            return
         # Extract ROI coordinates
         x, y = roi_rect.get_x(), roi_rect.get_y()
         width, height = roi_rect.get_width(), roi_rect.get_height()
@@ -372,7 +382,8 @@ class MainWindow(QMainWindow):
         wavelength_image = self.hypercube[idx, :, :]
 
         if self.wavelength_image_plot is None:
-            self.wavelength_image_plot = self.ax_rgb.imshow(wavelength_image, cmap='gray')
+            # self.wavelength_image_plot = self.ax_rgb.imshow(wavelength_image, cmap='gray')
+            self.wavelength_image_plot = self.ax_rgb.imshow(wavelength_image, cmap='gray', vmin=0, vmax=np.amax(self.hypercube))
             self.rgb_image_plot = None
         else:
             self.wavelength_image_plot.set_data(wavelength_image)
@@ -561,7 +572,3 @@ if __name__ == "__main__":
     window = MainWindow()
     window.show()
     sys.exit(app.exec_())
-
-
-
-
