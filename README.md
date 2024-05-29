@@ -6,6 +6,12 @@ Requirements:
 - Numpy
 - Matplotlib
 
+It has been noted that the ROIs can not display properly depending on the versions of the libraries. The following versions work:
+Matplotlib version: 3.2.2
+Numpy version: 1.22.0
+Pandas version: 2.0.3
+PyQt5 version: 5.15.11
+
 To run this code, one must update lines 20, 21 and 22 (default wavelengths, reference spectra for the calibrated macbeth colour patches and the corresponding rgb values).
 The code expects the hypercube and the wavelengths to be in the npz format.
 
