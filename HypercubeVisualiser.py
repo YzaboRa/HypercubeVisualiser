@@ -136,9 +136,13 @@ class MainWindow(QMainWindow):
         rescale_image_layout.addWidget(self.rescale_image_button)
         self.rescale_image_button.clicked.connect(self.rescale_image_button_clicked)
         
+        imrescale_layout = QHBoxLayout()
         self.rescale_image_box = QLineEdit()
-        rescale_image_layout.addWidget(QLabel("Factor:"))
-        rescale_image_layout.addWidget(self.rescale_image_box)
+        # # rescale_image_layout.addWidget(QLabel("Factor:"))
+        # rescale_image_layout.addWidget(self.rescale_image_box)
+        imrescale_layout.addWidget(QLabel("Factor:"))
+        imrescale_layout.addWidget(self.rescale_image_box)
+        rescale_image_layout.addLayout(imrescale_layout)
 
         ui_layout.addLayout(rescale_image_layout)
 
@@ -152,9 +156,13 @@ class MainWindow(QMainWindow):
         rescale_spectra_layout.addWidget(self.divide_spectra)
         self.divide_spectra.stateChanged.connect(self.checkbox_state_changed)
         
+        spectrarescale_layout = QHBoxLayout()
         self.rescale_spectra_box = QLineEdit()
-        rescale_spectra_layout.addWidget(QLabel("Factor:"))
-        rescale_spectra_layout.addWidget(self.rescale_spectra_box)
+        # # rescale_spectra_layout.addWidget(QLabel("Factor:"))
+        # rescale_spectra_layout.addWidget(self.rescale_spectra_box)
+        spectrarescale_layout.addWidget(QLabel("Factor:"))
+        spectrarescale_layout.addWidget(self.rescale_spectra_box)
+        rescale_spectra_layout.addLayout(spectrarescale_layout)
 
 
         ui_layout.addLayout(rescale_spectra_layout)
@@ -165,11 +173,17 @@ class MainWindow(QMainWindow):
         self.reference_patch_combo = QComboBox()
         self.reference_patch_combo2 = QComboBox()
         refpatch_layout.addWidget(QLabel("Selected Reference Patch:"))
-        refpatch_layout.addWidget(self.reference_patch_combo)
-        refpatch_layout.addWidget(self.reference_patch_combo2)
+        
+        refpatchH_layout = QHBoxLayout()
+
+        # refpatch_layout.addWidget(self.reference_patch_combo)
+        # refpatch_layout.addWidget(self.reference_patch_combo2)
+        refpatchH_layout.addWidget(self.reference_patch_combo)
+        refpatchH_layout.addWidget(self.reference_patch_combo2)
         self.reference_patch_combo.currentIndexChanged.connect(self.update_spectraplot)
         self.reference_patch_combo2.currentIndexChanged.connect(self.update_spectraplot)
 
+        refpatch_layout.addLayout(refpatchH_layout)
         ui_layout.addLayout(refpatch_layout)
         
         layout.addLayout(ui_layout)
