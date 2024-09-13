@@ -189,13 +189,13 @@ class MainWindow(QMainWindow):
         layout.addLayout(ui_layout)
 
 
-        # Create ROI rectangles
-        self.roi_rect1 = Rectangle((0, 0), 50, 50, edgecolor='red', facecolor='none')
-        self.roi_rect2 = Rectangle((10, 10), 50, 50, edgecolor='cornflowerblue', facecolor='none')
-        self.rgb_canvas.figure.gca().add_patch(self.roi_rect1)
-        self.rgb_canvas.figure.gca().add_patch(self.roi_rect2)
-        self.roi_rect1.set_visible(True)
-        self.roi_rect2.set_visible(True)
+        # # Create ROI rectangles
+        # self.roi_rect1 = Rectangle((0, 0), 50, 50, edgecolor='red', facecolor='none')
+        # self.roi_rect2 = Rectangle((10, 10), 50, 50, edgecolor='cornflowerblue', facecolor='none')
+        # self.rgb_canvas.figure.gca().add_patch(self.roi_rect1)
+        # self.rgb_canvas.figure.gca().add_patch(self.roi_rect2)
+        # self.roi_rect1.set_visible(True)
+        # self.roi_rect2.set_visible(True)
 
         # Connect mouse events for ROI interaction
         self.rgb_canvas.mpl_connect('button_press_event', self.on_press)
@@ -213,6 +213,14 @@ class MainWindow(QMainWindow):
 
         self.ax_spectrum = self.spectrum_canvas.figure.add_subplot(111)
         self.ax_rgb = self.rgb_canvas.figure.add_subplot(111)
+
+        # Create ROI rectangles
+        self.roi_rect1 = Rectangle((0, 0), 50, 50, edgecolor='red', facecolor='none')
+        self.roi_rect2 = Rectangle((10, 10), 50, 50, edgecolor='cornflowerblue', facecolor='none')
+        self.rgb_canvas.figure.gca().add_patch(self.roi_rect1)
+        self.rgb_canvas.figure.gca().add_patch(self.roi_rect2)
+        self.roi_rect1.set_visible(True)
+        self.roi_rect2.set_visible(True)
 
         self.action = None
 
@@ -372,10 +380,12 @@ class MainWindow(QMainWindow):
                 self.ax_rgb.set_title(f'Simulated RGB image, rescaled {self.rescale_value}')
             self.rgb_canvas.figure.tight_layout()
 
-            self.rgb_canvas.draw()
+            # self.rgb_canvas.draw()
 
             self.roi_rect1.set_visible(True)
             self.roi_rect2.set_visible(True)
+
+            self.rgb_canvas.draw()
 
         except Exception as e:
             print(f"Failed to update RGB plot: {e}")
