@@ -16,3 +16,8 @@ To run this code, one must update lines 20, 21 and 22 (default wavelengths, refe
 The code expects the hypercube and the wavelengths to be in the npz format.
 
 <img width="1261" alt="image" src="https://github.com/user-attachments/assets/47666333-782e-4c56-9ccc-c8c927dbc1a8">
+
+## To Do
+[ ] Add option to not display patch spectra (for clinical data)
+[ ] Add automatic detection and handling of different numbers of wavelengths (for ExVision data)
+
