@@ -93,6 +93,10 @@ class MainWindow(QMainWindow):
 		self.load_wavelengths_button = QPushButton("Load Wavelengths")
 		left_side_layout.addWidget(self.load_wavelengths_button)
 		self.load_wavelengths_button.clicked.connect(self.load_wavelengths)
+
+		self.populate_wavelengths_button = QPushButton("Populate Wavelengths")
+		left_side_layout.addWidget(self.populate_wavelengths_button)
+		self.populate_wavelengths_button.clicked.connect(self.populate_wavelengths)
 		
 		ui_layout.addLayout(left_side_layout)
 		
@@ -116,8 +120,19 @@ class MainWindow(QMainWindow):
 		rgb_layout.addWidget(QLabel("Blue:"))
 		rgb_layout.addWidget(self.blue_wav_combo)
 		self.blue_wav_combo.currentIndexChanged.connect(self.update_rgbplot)
+
+		populate_wavelengths_layout = QHBoxLayout()
+		self.populate_wavelengths_start = QLineEdit()
+		self.populate_wavelengths_end = QLineEdit()
+		self.populate_wavelengths_start.setText("400")
+		self.populate_wavelengths_end.setText("700")
+		populate_wavelengths_layout.addWidget(QLabel("First wavelength:"))
+		populate_wavelengths_layout.addWidget(self.populate_wavelengths_start)
+		populate_wavelengths_layout.addWidget(QLabel("Last wavelength:"))
+		populate_wavelengths_layout.addWidget(self.populate_wavelengths_end)
 		
 		middle_layout.addLayout(rgb_layout)
+		middle_layout.addLayout(populate_wavelengths_layout)
 
 		ui_layout.addLayout(middle_layout)
 		
@@ -301,45 +316,68 @@ class MainWindow(QMainWindow):
 
 			self.update_rgbplot()
 
+	def update_wavelengths(self):
+		# Populate wavelength combo box
+		self.selected_wavelength_combo.clear()
+		self.selected_wavelength_combo.addItems([str(wavelength) for wavelength in self.wavelengths])
+
+
+		# Populate RGB selection combo boxes
+		red_pos = self.find_closest(self.wavelengths,630)
+		green_pos = self.find_closest(self.wavelengths,540)
+		blue_pos = self.find_closest(self.wavelengths,440)
+
+		self.red_wav_combo.clear()
+		self.red_wav_combo.addItems([str(np.round(wavelength,2)) for wavelength in self.wavelengths])
+		self.red_wav_combo.setCurrentIndex(red_pos)
+
+		self.green_wav_combo.clear()
+		self.green_wav_combo.addItems([str(np.round(wavelength,2)) for wavelength in self.wavelengths])
+		self.green_wav_combo.setCurrentIndex(green_pos)
+
+		self.blue_wav_combo.clear()
+		self.blue_wav_combo.addItems([str(np.round(wavelength,2)) for wavelength in self.wavelengths])
+		self.blue_wav_combo.setCurrentIndex(blue_pos)
+
+		# Load reference spectra
+		reference_spectra = np.array(pd.read_excel(self.reference_spectra_path, sheet_name='Spectra')) 
+		reference_rgb = np.array(pd.read_excel(self.reference_rgb_path))
+		idx_min = self.find_closest(reference_spectra[:,0], self.wavelengths[0])
+		idx_max = self.find_closest(reference_spectra[:,0], self.wavelengths[-1])
+		self.reference_spectra = reference_spectra[idx_min:idx_max,:]
+		self.reference_rgb = reference_rgb
+		self.Nwhite = 8
+
+		self.update_rgbplot()
+		self.update_spectraplot()
+
+
 	def load_wavelengths(self):
 		# Prompt user to select the wavelengths file
 		wavelengths_path, _ = QFileDialog.getOpenFileName(self, "Select Wavelengths File", "", "NPZ files (*.npz)")
 		if wavelengths_path:
 			wavelengths = np.load(wavelengths_path)['arr_0']
 			self.wavelengths = wavelengths
-			# Populate wavelength combo box
-			self.selected_wavelength_combo.clear()
-			self.selected_wavelength_combo.addItems([str(wavelength) for wavelength in self.wavelengths])
+			self.update_wavelengths()
 
 
-			# Populate RGB selection combo boxes
-			red_pos = self.find_closest(self.wavelengths,630)
-			green_pos = self.find_closest(self.wavelengths,530)
-			blue_pos = self.find_closest(self.wavelengths,470)
+	def populate_wavelengths(self):
 
-			self.red_wav_combo.clear()
-			self.red_wav_combo.addItems([str(wavelength) for wavelength in self.wavelengths])
-			self.red_wav_combo.setCurrentIndex(red_pos)
+		try:
+			wav_start = float(self.populate_wavelengths_start.text())
+			wav_end = float(self.populate_wavelengths_end.text())
+		except ValueError:
+			print(f'\nPlease enter numerical values fro the wavelengths start and end. Setting to default')
+			self.populate_wavelengths_start.setText("400")
+			self.populate_wavelengths_end.setText("700")
+			wav_start = 400
+			wav_end = 700
+		self.wavelengths = np.linspace(wav_start,wav_end,self.Nwavlengths)
+		# Populate wavelength combo box
+		self.selected_wavelength_combo.clear()
+		self.selected_wavelength_combo.addItems([str(wavelength) for wavelength in self.wavelengths])
+		self.update_wavelengths()
 
-			self.green_wav_combo.clear()
-			self.green_wav_combo.addItems([str(wavelength) for wavelength in self.wavelengths])
-			self.green_wav_combo.setCurrentIndex(green_pos)
-
-			self.blue_wav_combo.clear()
-			self.blue_wav_combo.addItems([str(wavelength) for wavelength in self.wavelengths])
-			self.blue_wav_combo.setCurrentIndex(blue_pos)
-
-			# Load reference spectra
-			reference_spectra = np.array(pd.read_excel(self.reference_spectra_path, sheet_name='Spectra')) 
-			reference_rgb = np.array(pd.read_excel(self.reference_rgb_path))
-			idx_min = self.find_closest(reference_spectra[:,0], self.wavelengths[0])
-			idx_max = self.find_closest(reference_spectra[:,0], self.wavelengths[-1])
-			self.reference_spectra = reference_spectra[idx_min:idx_max,:]
-			self.reference_rgb = reference_rgb
-			self.Nwhite = 8
-
-			self.update_rgbplot()
-			self.update_spectraplot()
 
 	
 	def construct_rgb_image(self):
