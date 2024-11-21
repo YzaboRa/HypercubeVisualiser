@@ -591,10 +591,10 @@ class MainWindow(QMainWindow):
 			else:
 				if self.roi_rect1.get_visible():
 					roi_spectrum1 = self.calculate_roi_spectrum(self.roi_rect1)
-					self.ax_spectrum.plot(self.wavelengths, roi_spectrum1*self.rescale_spectra, '.-', color=c1)
+					self.ax_spectrum.plot(self.wavelengths, roi_spectrum1*self.rescale_spectra, '-', color=c1)
 				if self.roi_rect2.get_visible():
 					roi_spectrum2 = self.calculate_roi_spectrum(self.roi_rect2)
-					self.ax_spectrum.plot(self.wavelengths, roi_spectrum2*self.rescale_spectra, '.-', color=c2)
+					self.ax_spectrum.plot(self.wavelengths, roi_spectrum2*self.rescale_spectra, '-', color=c2)
 
 			self.ax_spectrum.set_xlabel("Wavelength")
 			self.ax_spectrum.set_ylabel("Intensity")
