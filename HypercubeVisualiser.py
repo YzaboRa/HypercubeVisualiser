@@ -7,6 +7,7 @@ from PyQt5.QtCore import Qt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
 import matplotlib
 import PyQt5
@@ -35,6 +36,7 @@ c2 = 'cornflowerblue'
 c3 = 'darkviolet'
 
 class Action(Enum):
+	NONE = 0
 	DRAG = 1
 	RESIZE_TOP_LEFT = 2
 	RESIZE_TOP_RIGHT = 3
@@ -278,7 +280,7 @@ class MainWindow(QMainWindow):
 
 			# Populate wavelength combo box
 			self.selected_wavelength_combo.clear()
-			self.selected_wavelength_combo.addItems([str(wavelength) for wavelength in self.wavelengths])
+			self.selected_wavelength_combo.addItems([str(np.round(wavelength,2)) for wavelength in self.wavelengths])
 
 			# Populate RGB selection combo boxes
 			red_pos = self.find_closest(self.wavelengths,630)
@@ -286,15 +288,15 @@ class MainWindow(QMainWindow):
 			blue_pos = self.find_closest(self.wavelengths,470)
 
 			self.red_wav_combo.clear()
-			self.red_wav_combo.addItems([str(wavelength) for wavelength in self.wavelengths])
+			self.red_wav_combo.addItems([str(np.round(wavelength,2)) for wavelength in self.wavelengths])
 			self.red_wav_combo.setCurrentIndex(red_pos)
 
 			self.green_wav_combo.clear()
-			self.green_wav_combo.addItems([str(wavelength) for wavelength in self.wavelengths])
+			self.green_wav_combo.addItems([str(np.round(wavelength,2)) for wavelength in self.wavelengths])
 			self.green_wav_combo.setCurrentIndex(green_pos)
 
 			self.blue_wav_combo.clear()
-			self.blue_wav_combo.addItems([str(wavelength) for wavelength in self.wavelengths])
+			self.blue_wav_combo.addItems([str(np.round(wavelength,2)) for wavelength in self.wavelengths])
 			self.blue_wav_combo.setCurrentIndex(blue_pos)
 
 			self.update_rgbplot()
@@ -369,6 +371,12 @@ class MainWindow(QMainWindow):
 			return
 
 		try:
+			# Remove existing colorbar if it exists
+			if hasattr(self, 'cbar') and self.cbar is not None:
+				self.cbar.remove()
+				self.cbar = None
+				self.cax = None  # Reset the colorbar axis reference
+		
 			rgb_image = self.construct_rgb_image()
 			self.wavelength_image_plot = None
 			if self.rescale_value != 1:
@@ -421,18 +429,52 @@ class MainWindow(QMainWindow):
 		# Display image corresponding to selected wavelength
 		selected_wavelength = float(self.selected_wavelength_combo.currentText())
 		idx = np.argmin(np.abs(self.wavelengths - selected_wavelength))
-		wavelength_image = self.hypercube[idx, :, :]
+		wavelength_image = self.hypercube[idx, :, :]#*self.rescale_value
+
 
 		if self.wavelength_image_plot is None:
+			# Remove existing colorbar if it exists
+			if hasattr(self, 'cbar') and self.cbar is not None:
+				print('Resetting colorbar')
+				self.cbar.remove()
+				self.cbar = None
+				self.cax.remove()  # Explicitly remove the colorbar axis
+				self.cax = None
+
 			# self.wavelength_image_plot = self.ax_rgb.imshow(wavelength_image, cmap='gray')
-			self.wavelength_image_plot = self.ax_rgb.imshow(wavelength_image, cmap='gray', vmin=0, vmax=np.amax(self.hypercube))
+			# im = self.wavelength_image_plot = self.ax_rgb.imshow(wavelength_image, cmap='gray', vmin=0, vmax=np.nanmax(self.hypercube))
+			im = self.wavelength_image_plot = self.ax_rgb.imshow(wavelength_image, cmap='gray', vmin=np.nanmin(wavelength_image), vmax=np.nanmax(wavelength_image)) #, vmin=0, vmax=np.nanmax(wavelength_image)
 			self.rgb_image_plot = None
+
+			# Add a colorbar
+			divider = make_axes_locatable(self.ax_rgb)
+			self.cax = divider.append_axes('right', size='5%', pad=0.05)
+			self.cbar = self.rgb_canvas.figure.colorbar(im, cax=self.cax, orientation='vertical')
 		else:
+			if hasattr(self, 'cbar') and self.cbar is not None:
+				print('Resetting colorbar')
+				self.cbar.remove()
+				self.cbar = None
+			if hasattr(self, 'cax') and self.cax in self.rgb_canvas.figure.axes:
+				print('Resetting cax')
+				self.cax.remove()  # Explicitly remove the colorbar axis
+				self.cax = None
+
 			self.wavelength_image_plot.set_data(wavelength_image)
+			self.wavelength_image_plot.set_clim(np.nanmin(wavelength_image), np.nanmax(wavelength_image))
+			im = self.wavelength_image_plot
+			# Add a colorbar
+			divider = make_axes_locatable(self.ax_rgb)
+			self.cax = divider.append_axes('right', size='5%', pad=0.05)
+			self.cbar = self.rgb_canvas.figure.colorbar(im, cax=self.cax, orientation='vertical')
 			self.rgb_image_plot = None
 
 		self.ax_rgb.set_axis_off()
-		self.ax_rgb.set_title(f'Image at Wavelength {selected_wavelength}')
+		self.ax_rgb.set_title(f'Image at Wavelength {selected_wavelength:.3f}')
+		# if self.rescale_value==1:
+		# 	self.ax_rgb.set_title(f'Image at Wavelength {selected_wavelength}')
+		# else:
+		# 	self.ax_rgb.set_title(f'Image at Wavelength {selected_wavelength}, rescale factor {self.rescale_value}')
 		self.rgb_canvas.figure.tight_layout()
 		self.rgb_canvas.draw()
 
