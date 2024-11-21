@@ -17,8 +17,12 @@ from enum import Enum
 import pandas as pd
 import warnings
 import os
+## To import matlab files
+import mat73
 
 warnings.filterwarnings("ignore",category=UserWarning)
+warnings.filterwarnings("ignore", category=RuntimeWarning, message=".*invalid value encountered in cast.*")
+
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -251,16 +255,29 @@ class MainWindow(QMainWindow):
 		self.rescale_value = 1
 		self.rescale_spectra = 1
 
+	def ReshapeMatlabMatrix(self, mat):
+		YY, XX, NN = mat.shape
+		Data_HV = []
+		for i in range(0,NN):
+			Data_HV.append(mat[:,:,i])
+		Data_HV = np.array(Data_HV)
+		return Data_HV
 
 	def load_hypercube(self):
 		# Prompt user to select the hypercube file
-		hypercube_path, _ = QFileDialog.getOpenFileName(self, "Select Hypercube File", "", "NPZ files (*.npz)")
+		hypercube_path, _ = QFileDialog.getOpenFileName(self, "Select Hypercube File", "", "NPZ and MAT files (*.npz *.mat)")
 		# # Load hypercube data
 		self.reference_spectra_path = dir_path+'/Micro_Nano_CheckerTargetData.xls'
 		self.reference_rgb_path = dir_path+'/Macbeth_Adobe.xlsx'
 
 		if hypercube_path:
-			hypercube = np.load(hypercube_path)['arr_0']
+			if '.npz' in hypercube_path:
+				hypercube = np.load(hypercube_path)['arr_0']
+			elif '.mat' in hypercube_path:
+				print(f'\nLoaded a matlab matrix. Converting it to numpy array, assuming data stored under \'imageCube\' key with shape [Y,X,wavelengths]\n')
+				MatlabData = mat73.loadmat(hypercube_path)
+				hypercube = self.ReshapeMatlabMatrix(MatlabData['imageCube'])
+
 			# print(f'Hypercube: \n {hypercube} \n\n')
 			self.hypercube = hypercube
 			self.Nwavlengths, _, _ = hypercube.shape
@@ -456,10 +473,12 @@ class MainWindow(QMainWindow):
 		width, height = int(np.round(width, 0)), int(np.round(height, 0))
 		spectrum_roi = self.hypercube[:, y:y + height, x:x + width]
 
-		# Calculate the average spectrum
-		average_spectrum = np.nanmean(spectrum_roi, axis=(1, 2))
-		# print(f'ROI spectrum: \n {average_spectrum} \n\n')
-		# print(f'ROI spectrum: \n {spectrum_roi} \n\n')
+		with warnings.catch_warnings():
+			warnings.simplefilter("ignore", category=RuntimeWarning)
+			# Calculate the average spectrum
+			average_spectrum = np.nanmean(spectrum_roi, axis=(1, 2))
+			# print(f'ROI spectrum: \n {average_spectrum} \n\n')
+			# print(f'ROI spectrum: \n {spectrum_roi} \n\n')
 		return average_spectrum
 
 
