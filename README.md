@@ -5,6 +5,7 @@ Requirements:
 - PyQt5
 - Numpy
 - Matplotlib
+- mat73 (from https://pypi.org/project/mat73/, install with pip install mat73)
 
 It has been noted that the ROIs can not display properly depending on the versions of the libraries. The following versions work:
 Matplotlib version: 3.2.2
@@ -18,7 +19,7 @@ The code expects the hypercube and the wavelengths to be in the npz format.
 <img width="1261" alt="image" src="https://github.com/user-attachments/assets/47666333-782e-4c56-9ccc-c8c927dbc1a8">
 
 ## To Do
-- [ ] Add option to not display patch spectra (for clinical data)
-- [ ] Add automatic detection and handling of different numbers of wavelengths (for ExVision data)
+- [x] Add option to not display patch spectra (for clinical data)
+- [x] Add automatic detection and handling of different numbers of wavelengths (for ExVision data)
 - [ ] Add self-contained reference patches
 
