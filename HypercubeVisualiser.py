@@ -211,6 +211,10 @@ class MainWindow(QMainWindow):
 		
 		layout.addLayout(ui_layout)
 
+		self.save_figures_button = QPushButton("Save Figures")
+		rescale_image_layout.addWidget(self.save_figures_button)
+		self.save_figures_button.clicked.connect(self.save_figures)
+
 
 		# # Create ROI rectangles
 		# self.roi_rect1 = Rectangle((0, 0), 50, 50, edgecolor='red', facecolor='none')
@@ -623,13 +627,13 @@ class MainWindow(QMainWindow):
 	# 		self.rescale_value = float(self.rescale_image_box.text())
 	# 		self.update_rgbplot()
 	def rescale_image_button_clicked(self):
-	    if self.rescale_image_box.text():
-	        self.rescale_value = float(self.rescale_image_box.text())
-	        # Just re-call whatever plot is currently visible
-	        if self.wavelength_image_plot is not None:
-	            self.display_wavelength_image()
-	        else:
-	            self.update_rgbplot()
+		if self.rescale_image_box.text():
+			self.rescale_value = float(self.rescale_image_box.text())
+			# Just re-call whatever plot is currently visible
+			if self.wavelength_image_plot is not None:
+				self.display_wavelength_image()
+			else:
+				self.update_rgbplot()
 
 	## Handle rescale of the spectra
 	def rescale_spectra_button_clicked(self):
@@ -752,7 +756,37 @@ class MainWindow(QMainWindow):
 	def on_release(self, event):
 		self.dragging = False
 		self.action = Action.NONE
-		self.update_spectraplot()
+		self.update_spectraplot
+
+	def save_figures(self):
+		# Ask for a folder or base filename
+		# file_path, _ = QFileDialog.getSaveFileName(self, "Save Figures As", "",
+		# 										   "PNG files (*.png);;TIFF files (*.tif *.tiff);;All Files (*)")
+
+		options = QFileDialog.Options()
+		options |= QFileDialog.DontUseNativeDialog   # ← use the Qt dialog instead
+		file_path, _ = QFileDialog.getSaveFileName(
+			self,
+			"Save Figures As",
+			"",
+			"PNG files (*.png);;TIFF files (*.tif *.tiff);;All Files (*)",
+			options=options)
+
+		if not file_path:
+			return
+
+		file_path = file_path.replace('.png','')
+
+		# Save the left canvas (RGB/wavelength image)
+		rgb_path = file_path + "_image.png"
+		self.rgb_canvas.figure.savefig(rgb_path, bbox_inches='tight', dpi=300)
+
+		# Save the right canvas (spectra)
+		spec_path = file_path + "_spectra.png"
+		self.spectrum_canvas.figure.savefig(spec_path, bbox_inches='tight', dpi=300)
+
+		print(f"Saved image figure as {rgb_path}")
+		print(f"Saved spectra figure as {spec_path}")
 
 
 
