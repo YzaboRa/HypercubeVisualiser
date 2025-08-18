@@ -500,7 +500,9 @@ class MainWindow(QMainWindow):
 
 			# self.wavelength_image_plot = self.ax_rgb.imshow(wavelength_image, cmap='gray')
 			# im = self.wavelength_image_plot = self.ax_rgb.imshow(wavelength_image, cmap='gray', vmin=0, vmax=np.nanmax(self.hypercube))
-			im = self.wavelength_image_plot = self.ax_rgb.imshow(wavelength_image, cmap='gray', vmin=np.nanmin(wavelength_image), vmax=np.nanmax(wavelength_image)) #, vmin=0, vmax=np.nanmax(wavelength_image)
+			ImageToPlot = self.BrightenImage_Mono(wavelength_image, self.rescale_value)
+			
+			im = self.wavelength_image_plot = self.ax_rgb.imshow(ImageToPlot, cmap='gray', vmin=np.nanmin(ImageToPlot), vmax=np.nanmax(ImageToPlot)) #, vmin=0, vmax=np.nanmax(wavelength_image)
 			self.rgb_image_plot = None
 
 			# Add a colorbar
@@ -508,6 +510,8 @@ class MainWindow(QMainWindow):
 			self.cax = divider.append_axes('right', size='5%', pad=0.05)
 			self.cbar = self.rgb_canvas.figure.colorbar(im, cax=self.cax, orientation='vertical')
 		else:
+			ImageToPlot = self.BrightenImage_Mono(wavelength_image, self.rescale_value)
+
 			if hasattr(self, 'cbar') and self.cbar is not None:
 				print('Resetting colorbar')
 				self.cbar.remove()
@@ -517,8 +521,8 @@ class MainWindow(QMainWindow):
 				self.cax.remove()  # Explicitly remove the colorbar axis
 				self.cax = None
 
-			self.wavelength_image_plot.set_data(wavelength_image)
-			self.wavelength_image_plot.set_clim(np.nanmin(wavelength_image), np.nanmax(wavelength_image))
+			self.wavelength_image_plot.set_data(ImageToPlot)
+			self.wavelength_image_plot.set_clim(np.nanmin(ImageToPlot), np.nanmax(ImageToPlot)) #wavelength_image
 			im = self.wavelength_image_plot
 			# Add a colorbar
 			divider = make_axes_locatable(self.ax_rgb)
@@ -527,7 +531,7 @@ class MainWindow(QMainWindow):
 			self.rgb_image_plot = None
 
 		self.ax_rgb.set_axis_off()
-		self.ax_rgb.set_title(f'Image at Wavelength {selected_wavelength:.3f}')
+		self.ax_rgb.set_title(f'Image at Wavelength {selected_wavelength:.3f} - Scaled by {self.rescale_value}')
 		# if self.rescale_value==1:
 		# 	self.ax_rgb.set_title(f'Image at Wavelength {selected_wavelength}')
 		# else:
@@ -614,10 +618,18 @@ class MainWindow(QMainWindow):
 
 
 	## Handle rescale of the RGB image
+	# def rescale_image_button_clicked(self):
+	# 	if self.rescale_image_box.text():
+	# 		self.rescale_value = float(self.rescale_image_box.text())
+	# 		self.update_rgbplot()
 	def rescale_image_button_clicked(self):
-		if self.rescale_image_box.text():
-			self.rescale_value = float(self.rescale_image_box.text())
-			self.update_rgbplot()
+	    if self.rescale_image_box.text():
+	        self.rescale_value = float(self.rescale_image_box.text())
+	        # Just re-call whatever plot is currently visible
+	        if self.wavelength_image_plot is not None:
+	            self.display_wavelength_image()
+	        else:
+	            self.update_rgbplot()
 
 	## Handle rescale of the spectra
 	def rescale_spectra_button_clicked(self):
@@ -628,9 +640,16 @@ class MainWindow(QMainWindow):
 	## Rescale the RGB image
 	def BrightenImage(self, imRGB, Scale):
 		im0 = imRGB*Scale
-		pos = np.where(im0>1.0)
-		for k in range(0,len(pos[0])):
-			im0[pos[0][k], pos[1][k], pos[2][k]] = 1.0
+		# pos = np.where(im0>1.0)
+		# for k in range(0,len(pos[0])):
+		# 	im0[pos[0][k], pos[1][k], pos[2][k]] = 1.0
+		im0 = np.clip(im0, 0, 1)
+		return im0
+
+	## Rescale the RGB image
+	def BrightenImage_Mono(self, im, Scale):
+		im0 = im*Scale
+		im0 = np.clip(im0, 0, 1)
 		return im0
 
 	## Reszie figures as the GUI window is modified    
