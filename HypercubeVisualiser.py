@@ -314,6 +314,9 @@ class MainWindow(QMainWindow):
 			self.reference_patch_combo2.clear()
 			self.reference_patch_combo2.addItems(ItemsList)
 
+			# → Force the first combobox to start at patch 8
+			self.reference_patch_combo.setCurrentIndex(7)
+
 			# Populate wavelength combo box
 			self.selected_wavelength_combo.clear()
 			self.selected_wavelength_combo.addItems([str(np.round(wavelength,2)) for wavelength in self.wavelengths])
