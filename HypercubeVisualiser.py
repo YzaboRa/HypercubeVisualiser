@@ -269,7 +269,7 @@ class MainWindow(QMainWindow):
 
 	def load_hypercube(self):
 		# Prompt user to select the hypercube file
-		hypercube_path, _ = QFileDialog.getOpenFileName(self, "Select Hypercube File", "", "NPZ and MAT files (*.npz *.mat)")
+		hypercube_path, _ = QFileDialog.getOpenFileName(self, "Select Hypercube File", "", "NPZ, NPY and MAT files (*.npz *npy *.mat)")
 		# # Load hypercube data
 		self.reference_spectra_path = dir_path+'/Micro_Nano_CheckerTargetData.xls'
 		self.reference_rgb_path = dir_path+'/Macbeth_Adobe.xlsx'
@@ -277,6 +277,8 @@ class MainWindow(QMainWindow):
 		if hypercube_path:
 			if '.npz' in hypercube_path:
 				hypercube = np.load(hypercube_path)['arr_0']
+			elif 'npy' in hypercube_path:
+				hypercube = np.load(hypercube_path)
 			elif '.mat' in hypercube_path:
 				print(f'\nLoaded a matlab matrix. Converting it to numpy array, assuming data stored under \'imageCube\' key with shape [Y,X,wavelengths]\n')
 				MatlabData = mat73.loadmat(hypercube_path)
