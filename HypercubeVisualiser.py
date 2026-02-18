@@ -1,6 +1,7 @@
 import sys
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QFileDialog, QCheckBox
 from PyQt5.QtWidgets import QHBoxLayout, QPushButton, QLabel, QSizePolicy, QComboBox, QLineEdit
+from PyQt5.QtWidgets import QSplitter
 from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtCore import QFile
 from PyQt5.QtCore import Qt
@@ -49,172 +50,376 @@ class Action(Enum):
 
 
 class MainWindow(QMainWindow):
+
 	def __init__(self):
 		super().__init__()
 
 		self.setWindowTitle("Hypercube Visualizer")
-		self.setGeometry(100, 100, 800, 700)  # Adjusted window width
+		self.resize(1200, 900) # Start with a larger window
 		
-		# Create a central widget
 		central_widget = QWidget()
 		self.setCentralWidget(central_widget)
+		main_layout = QVBoxLayout(central_widget)
+		main_layout.setContentsMargins(5, 5, 5, 5)
+
+		from PyQt5.QtWidgets import QSplitter, QFrame
+		self.vertical_splitter = QSplitter(Qt.Vertical)
+		main_layout.addWidget(self.vertical_splitter)
+
+		# --- TOP SECTION: FIGURES ---
+		self.top_container = QWidget()
+		self.top_layout = QVBoxLayout(self.top_container)
 		
-		# Create a layout for the central widget
-		layout = QVBoxLayout(central_widget)
-		
-		# Figures layout
 		figures_layout = QHBoxLayout()
+		self.rgb_canvas = FigureCanvas(Figure(figsize=(5, 5)))
+		self.spectrum_canvas = FigureCanvas(Figure(figsize=(5, 5)))
 		
-		# Left side: RGB image and Load button
-		self.rgb_canvas = FigureCanvas(Figure(figsize=(6, 6)))  # Adjusted figure size
+		# Ensure canvases take up all available room
+		self.rgb_canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+		self.spectrum_canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+		
 		figures_layout.addWidget(self.rgb_canvas)
-		
-		# Right side: Spectrum plot
-		self.spectrum_canvas = FigureCanvas(Figure(figsize=(6, 6)))  # Adjusted figure size
 		figures_layout.addWidget(self.spectrum_canvas)
+		self.top_layout.addLayout(figures_layout)
 		
-		layout.addLayout(figures_layout)
-		
-		# Add Navigation Toolbars
 		toolbar_layout = QHBoxLayout()
-		
 		self.rgb_toolbar = NavigationToolbar(self.rgb_canvas, self)
-		toolbar_layout.addWidget(self.rgb_toolbar)
-		
 		self.spectrum_toolbar = NavigationToolbar(self.spectrum_canvas, self)
+		toolbar_layout.addWidget(self.rgb_toolbar)
 		toolbar_layout.addWidget(self.spectrum_toolbar)
+		self.top_layout.addLayout(toolbar_layout)
+
+		# --- BOTTOM SECTION: UI CONTROLS ---
+		self.bottom_container = QFrame() # Changed to QFrame for better layout handling
+		self.bottom_container.setFrameStyle(QFrame.StyledPanel)
+		self.ui_layout = QHBoxLayout(self.bottom_container)
 		
-		layout.addLayout(toolbar_layout)
-		
-		# Load the UI elements from the UI file
-		ui_layout = QHBoxLayout()
-		
+		# CRITICAL: Prevent the bottom section from growing vertically
+		self.bottom_container.setMaximumHeight(200) 
+		self.bottom_container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+		# --- Column setup (Keep these compact) ---
 		left_side_layout = QVBoxLayout()
 		self.load_hypercube_button = QPushButton("Load Hypercube")
-		left_side_layout.addWidget(self.load_hypercube_button)
 		self.load_hypercube_button.clicked.connect(self.load_hypercube)
-		
 		self.load_wavelengths_button = QPushButton("Load Wavelengths")
-		left_side_layout.addWidget(self.load_wavelengths_button)
 		self.load_wavelengths_button.clicked.connect(self.load_wavelengths)
-
 		self.populate_wavelengths_button = QPushButton("Populate Wavelengths")
-		left_side_layout.addWidget(self.populate_wavelengths_button)
 		self.populate_wavelengths_button.clicked.connect(self.populate_wavelengths)
-		
-		ui_layout.addLayout(left_side_layout)
+		left_side_layout.addWidget(self.load_hypercube_button)
+		left_side_layout.addWidget(self.load_wavelengths_button)
+		left_side_layout.addWidget(self.populate_wavelengths_button)
+		self.ui_layout.addLayout(left_side_layout)
 		
 		middle_layout = QVBoxLayout()
 		self.display_rgb_button = QPushButton("Display RGB")
-		middle_layout.addWidget(self.display_rgb_button)
 		self.display_rgb_button.clicked.connect(self.update_rgbplot)
+		middle_layout.addWidget(self.display_rgb_button)
 		
 		rgb_layout = QHBoxLayout()
 		self.red_wav_combo = QComboBox()
-		rgb_layout.addWidget(QLabel("Red:"))
-		rgb_layout.addWidget(self.red_wav_combo)
-		self.red_wav_combo.currentIndexChanged.connect(self.update_rgbplot)
-		
 		self.green_wav_combo = QComboBox()
-		rgb_layout.addWidget(QLabel("Green:"))
-		rgb_layout.addWidget(self.green_wav_combo)
-		self.green_wav_combo.currentIndexChanged.connect(self.update_rgbplot)
-		
 		self.blue_wav_combo = QComboBox()
-		rgb_layout.addWidget(QLabel("Blue:"))
+		rgb_layout.addWidget(QLabel("R:"))
+		rgb_layout.addWidget(self.red_wav_combo)
+		rgb_layout.addWidget(QLabel("G:"))
+		rgb_layout.addWidget(self.green_wav_combo)
+		rgb_layout.addWidget(QLabel("B:"))
 		rgb_layout.addWidget(self.blue_wav_combo)
-		self.blue_wav_combo.currentIndexChanged.connect(self.update_rgbplot)
-
-		populate_wavelengths_layout = QHBoxLayout()
-		self.populate_wavelengths_start = QLineEdit()
-		self.populate_wavelengths_end = QLineEdit()
-		self.populate_wavelengths_start.setText("400")
-		self.populate_wavelengths_end.setText("700")
-		populate_wavelengths_layout.addWidget(QLabel("First wavelength:"))
-		populate_wavelengths_layout.addWidget(self.populate_wavelengths_start)
-		populate_wavelengths_layout.addWidget(QLabel("Last wavelength:"))
-		populate_wavelengths_layout.addWidget(self.populate_wavelengths_end)
-		
+		self.red_wav_combo.currentIndexChanged.connect(self.update_rgbplot)
 		middle_layout.addLayout(rgb_layout)
-		middle_layout.addLayout(populate_wavelengths_layout)
 
-		ui_layout.addLayout(middle_layout)
+		pop_layout = QHBoxLayout()
+		self.populate_wavelengths_start = QLineEdit("400")
+		self.populate_wavelengths_end = QLineEdit("700")
+		pop_layout.addWidget(QLabel("Start λ:"))
+		pop_layout.addWidget(self.populate_wavelengths_start)
+		pop_layout.addWidget(QLabel("End λ:"))
+		pop_layout.addWidget(self.populate_wavelengths_end)
+		middle_layout.addLayout(pop_layout)
+		self.ui_layout.addLayout(middle_layout)
 		
 		right_side_layout = QVBoxLayout()
 		self.display_wavelength_button = QPushButton("Display Wavelength")
-		right_side_layout.addWidget(self.display_wavelength_button)
 		self.display_wavelength_button.clicked.connect(self.display_wavelength_image)
-		
 		self.selected_wavelength_combo = QComboBox()
-		right_side_layout.addWidget(QLabel("Select Wavelength:"))
+		right_side_layout.addWidget(self.display_wavelength_button)
+		right_side_layout.addWidget(QLabel("Select λ:"))
 		right_side_layout.addWidget(self.selected_wavelength_combo)
-		ui_layout.addLayout(right_side_layout)
-		# self.selected_wavelength_combo.currentIndexChanged.connect(self.display_wavelength_image)
+		self.ui_layout.addLayout(right_side_layout)
 		
-		rescale_image_layout = QVBoxLayout()
+		rescale_layout = QVBoxLayout()
 		self.rescale_image_button = QPushButton("Rescale Image")
-		rescale_image_layout.addWidget(self.rescale_image_button)
 		self.rescale_image_button.clicked.connect(self.rescale_image_button_clicked)
+		self.rescale_image_box = QLineEdit("1")
+		self.save_figures_button = QPushButton("Save Figures")
+		self.save_figures_button.clicked.connect(self.save_figures)
 		
-		imrescale_layout = QHBoxLayout()
-		self.rescale_image_box = QLineEdit()
-		# # rescale_image_layout.addWidget(QLabel("Factor:"))
-		# rescale_image_layout.addWidget(self.rescale_image_box)
-		imrescale_layout.addWidget(QLabel("Factor:"))
-		imrescale_layout.addWidget(self.rescale_image_box)
-		rescale_image_layout.addLayout(imrescale_layout)
+		im_res_row = QHBoxLayout()
+		im_res_row.addWidget(QLabel("Img Scale:"))
+		im_res_row.addWidget(self.rescale_image_box)
+		rescale_layout.addWidget(self.rescale_image_button)
+		rescale_layout.addLayout(im_res_row)
+		rescale_layout.addWidget(self.save_figures_button)
+		self.ui_layout.addLayout(rescale_layout)
 
-		ui_layout.addLayout(rescale_image_layout)
-
-		
-		rescale_spectra_layout = QVBoxLayout()
+		spec_res_layout = QVBoxLayout()
 		self.rescale_spectra_button = QPushButton("Rescale Spectra")
-		rescale_spectra_layout.addWidget(self.rescale_spectra_button)
 		self.rescale_spectra_button.clicked.connect(self.rescale_spectra_button_clicked)
-
 		self.divide_spectra = QCheckBox('red/blue')
-		rescale_spectra_layout.addWidget(self.divide_spectra)
 		self.divide_spectra.stateChanged.connect(self.RedBluecheckbox_state_changed)
+		self.rescale_spectra_box = QLineEdit("1")
 		
-		spectrarescale_layout = QHBoxLayout()
-		self.rescale_spectra_box = QLineEdit()
-		# # rescale_spectra_layout.addWidget(QLabel("Factor:"))
-		# rescale_spectra_layout.addWidget(self.rescale_spectra_box)
-		spectrarescale_layout.addWidget(QLabel("Factor:"))
-		spectrarescale_layout.addWidget(self.rescale_spectra_box)
-		rescale_spectra_layout.addLayout(spectrarescale_layout)
+		spec_res_row = QHBoxLayout()
+		spec_res_row.addWidget(QLabel("Spec Scale:"))
+		spec_res_row.addWidget(self.rescale_spectra_box)
+		spec_res_layout.addWidget(self.rescale_spectra_button)
+		spec_res_layout.addWidget(self.divide_spectra)
+		spec_res_layout.addLayout(spec_res_row)
+		self.ui_layout.addLayout(spec_res_layout)
 
-
-		ui_layout.addLayout(rescale_spectra_layout)
-
-
-		
-		refpatch_layout = QVBoxLayout()
+		ref_layout = QVBoxLayout()
 		self.reference_patch_combo = QComboBox()
 		self.reference_patch_combo2 = QComboBox()
-		refpatch_layout.addWidget(QLabel("Selected Reference Patch:"))
-
 		self.show_refpatch = QCheckBox('Show reference')
-		refpatchH_layout = QHBoxLayout()
-
-		# refpatch_layout.addWidget(self.reference_patch_combo)
-		# refpatch_layout.addWidget(self.reference_patch_combo2)
-		refpatchH_layout.addWidget(self.reference_patch_combo)
-		refpatchH_layout.addWidget(self.reference_patch_combo2)
-		self.reference_patch_combo.currentIndexChanged.connect(self.update_spectraplot)
-		self.reference_patch_combo2.currentIndexChanged.connect(self.update_spectraplot)
-
-		refpatch_layout.addLayout(refpatchH_layout)
-		refpatch_layout.addWidget(self.show_refpatch)
 		self.show_refpatch.stateChanged.connect(self.RefPatchcheckbox_state_changed)
-		ui_layout.addLayout(refpatch_layout)
 		
-		layout.addLayout(ui_layout)
+		ref_row = QHBoxLayout()
+		ref_row.addWidget(self.reference_patch_combo)
+		ref_row.addWidget(self.reference_patch_combo2)
+		ref_layout.addWidget(QLabel("Ref Patches:"))
+		ref_layout.addLayout(ref_row)
+		ref_layout.addWidget(self.show_refpatch)
+		self.ui_layout.addLayout(ref_layout)
 
-		self.save_figures_button = QPushButton("Save Figures")
-		rescale_image_layout.addWidget(self.save_figures_button)
-		self.save_figures_button.clicked.connect(self.save_figures)
+		# Add sections to the splitter
+		self.vertical_splitter.addWidget(self.top_container)
+		self.vertical_splitter.addWidget(self.bottom_container)
+		
+		# SET STRETCH FACTORS: Figures (index 0) grow, Buttons (index 1) stay fixed
+		self.vertical_splitter.setStretchFactor(0, 1)
+		self.vertical_splitter.setStretchFactor(1, 0)
+		self.vertical_splitter.setSizes([800, 100])
 
+		# Interaction and logic setup...
+		self.rgb_canvas.mpl_connect('button_press_event', self.on_press)
+		self.rgb_canvas.mpl_connect('motion_notify_event', self.on_motion)
+		self.rgb_canvas.mpl_connect('button_release_event', self.on_release)
+
+		self.dragging = False
+		self.start_x = None
+		self.start_y = None
+		self.current_roi = None
+		self.rgb_image_plot = None
+		self.wavelength_image_plot = None
+
+		self.ax_spectrum = self.spectrum_canvas.figure.add_subplot(111)
+		self.ax_rgb = self.rgb_canvas.figure.add_subplot(111)
+
+		self.roi_rect1 = Rectangle((0, 0), 50, 50, edgecolor='red', facecolor='none')
+		self.roi_rect2 = Rectangle((10, 10), 50, 50, edgecolor='cornflowerblue', facecolor='none')
+		self.ax_rgb.add_patch(self.roi_rect1)
+		self.ax_rgb.add_patch(self.roi_rect2)
+		
+		self.action = None
+		self.hypercube = None
+		self.wavelengths = None
+		self.reference_spectra = None
+		self.rescale_value = 1
+		self.rescale_spectra = 1
+
+
+	# def __init__(self):
+	# 	super().__init__()
+
+	# 	self.setWindowTitle("Hypercube Visualizer")
+	# 	self.setGeometry(100, 100, 800, 700)  # Adjusted window width
+		
+	# 	# Create a central widget
+	# 	central_widget = QWidget()
+	# 	self.setCentralWidget(central_widget)
+		
+	# 	# Create a layout for the central widget
+	# 	layout = QVBoxLayout(central_widget)
+		
+	# 	# Figures layout
+	# 	figures_layout = QHBoxLayout()
+		
+	# 	# Left side: RGB image and Load button
+	# 	self.rgb_canvas = FigureCanvas(Figure(figsize=(6, 6)))  # Adjusted figure size
+	# 	figures_layout.addWidget(self.rgb_canvas)
+		
+	# 	# Right side: Spectrum plot
+	# 	self.spectrum_canvas = FigureCanvas(Figure(figsize=(6, 6)))  # Adjusted figure size
+	# 	figures_layout.addWidget(self.spectrum_canvas)
+		
+	# 	layout.addLayout(figures_layout)
+		
+	# 	# Add Navigation Toolbars
+	# 	toolbar_layout = QHBoxLayout()
+		
+	# 	self.rgb_toolbar = NavigationToolbar(self.rgb_canvas, self)
+	# 	toolbar_layout.addWidget(self.rgb_toolbar)
+		
+	# 	self.spectrum_toolbar = NavigationToolbar(self.spectrum_canvas, self)
+	# 	toolbar_layout.addWidget(self.spectrum_toolbar)
+		
+	# 	layout.addLayout(toolbar_layout)
+		
+	# 	# Load the UI elements from the UI file
+	# 	ui_layout = QHBoxLayout()
+		
+	# 	left_side_layout = QVBoxLayout()
+	# 	self.load_hypercube_button = QPushButton("Load Hypercube")
+	# 	left_side_layout.addWidget(self.load_hypercube_button)
+	# 	self.load_hypercube_button.clicked.connect(self.load_hypercube)
+		
+	# 	self.load_wavelengths_button = QPushButton("Load Wavelengths")
+	# 	left_side_layout.addWidget(self.load_wavelengths_button)
+	# 	self.load_wavelengths_button.clicked.connect(self.load_wavelengths)
+
+		# self.populate_wavelengths_button = QPushButton("Populate Wavelengths")
+		# left_side_layout.addWidget(self.populate_wavelengths_button)
+		# self.populate_wavelengths_button.clicked.connect(self.populate_wavelengths)
+		
+		# ui_layout.addLayout(left_side_layout)
+		
+		# middle_layout = QVBoxLayout()
+		# self.display_rgb_button = QPushButton("Display RGB")
+		# middle_layout.addWidget(self.display_rgb_button)
+		# self.display_rgb_button.clicked.connect(self.update_rgbplot)
+		
+		# rgb_layout = QHBoxLayout()
+		# self.red_wav_combo = QComboBox()
+		# rgb_layout.addWidget(QLabel("Red:"))
+		# rgb_layout.addWidget(self.red_wav_combo)
+		# self.red_wav_combo.currentIndexChanged.connect(self.update_rgbplot)
+		
+		# self.green_wav_combo = QComboBox()
+		# rgb_layout.addWidget(QLabel("Green:"))
+		# rgb_layout.addWidget(self.green_wav_combo)
+		# self.green_wav_combo.currentIndexChanged.connect(self.update_rgbplot)
+		
+		# self.blue_wav_combo = QComboBox()
+		# rgb_layout.addWidget(QLabel("Blue:"))
+		# rgb_layout.addWidget(self.blue_wav_combo)
+		# self.blue_wav_combo.currentIndexChanged.connect(self.update_rgbplot)
+
+		# populate_wavelengths_layout = QHBoxLayout()
+		# self.populate_wavelengths_start = QLineEdit()
+		# self.populate_wavelengths_end = QLineEdit()
+		# self.populate_wavelengths_start.setText("400")
+		# self.populate_wavelengths_end.setText("700")
+		# populate_wavelengths_layout.addWidget(QLabel("First wavelength:"))
+		# populate_wavelengths_layout.addWidget(self.populate_wavelengths_start)
+		# populate_wavelengths_layout.addWidget(QLabel("Last wavelength:"))
+		# populate_wavelengths_layout.addWidget(self.populate_wavelengths_end)
+		
+		# middle_layout.addLayout(rgb_layout)
+		# middle_layout.addLayout(populate_wavelengths_layout)
+
+		# ui_layout.addLayout(middle_layout)
+		
+		# right_side_layout = QVBoxLayout()
+		# self.display_wavelength_button = QPushButton("Display Wavelength")
+		# right_side_layout.addWidget(self.display_wavelength_button)
+		# self.display_wavelength_button.clicked.connect(self.display_wavelength_image)
+		
+		# self.selected_wavelength_combo = QComboBox()
+		# right_side_layout.addWidget(QLabel("Select Wavelength:"))
+		# right_side_layout.addWidget(self.selected_wavelength_combo)
+		# ui_layout.addLayout(right_side_layout)
+		# # self.selected_wavelength_combo.currentIndexChanged.connect(self.display_wavelength_image)
+		
+		# rescale_image_layout = QVBoxLayout()
+		# self.rescale_image_button = QPushButton("Rescale Image")
+		# rescale_image_layout.addWidget(self.rescale_image_button)
+		# self.rescale_image_button.clicked.connect(self.rescale_image_button_clicked)
+		
+		# imrescale_layout = QHBoxLayout()
+		# self.rescale_image_box = QLineEdit()
+		# # # rescale_image_layout.addWidget(QLabel("Factor:"))
+		# # rescale_image_layout.addWidget(self.rescale_image_box)
+		# imrescale_layout.addWidget(QLabel("Factor:"))
+		# imrescale_layout.addWidget(self.rescale_image_box)
+		# rescale_image_layout.addLayout(imrescale_layout)
+
+		# ui_layout.addLayout(rescale_image_layout)
+
+		
+		# rescale_spectra_layout = QVBoxLayout()
+		# self.rescale_spectra_button = QPushButton("Rescale Spectra")
+		# rescale_spectra_layout.addWidget(self.rescale_spectra_button)
+		# self.rescale_spectra_button.clicked.connect(self.rescale_spectra_button_clicked)
+
+		# self.divide_spectra = QCheckBox('red/blue')
+		# rescale_spectra_layout.addWidget(self.divide_spectra)
+		# self.divide_spectra.stateChanged.connect(self.RedBluecheckbox_state_changed)
+		
+		# spectrarescale_layout = QHBoxLayout()
+		# self.rescale_spectra_box = QLineEdit()
+		# # # rescale_spectra_layout.addWidget(QLabel("Factor:"))
+		# # rescale_spectra_layout.addWidget(self.rescale_spectra_box)
+		# spectrarescale_layout.addWidget(QLabel("Factor:"))
+		# spectrarescale_layout.addWidget(self.rescale_spectra_box)
+		# rescale_spectra_layout.addLayout(spectrarescale_layout)
+
+
+		# ui_layout.addLayout(rescale_spectra_layout)
+
+
+		
+		# refpatch_layout = QVBoxLayout()
+		# self.reference_patch_combo = QComboBox()
+		# self.reference_patch_combo2 = QComboBox()
+		# refpatch_layout.addWidget(QLabel("Selected Reference Patch:"))
+
+		# self.show_refpatch = QCheckBox('Show reference')
+		# refpatchH_layout = QHBoxLayout()
+
+		# # refpatch_layout.addWidget(self.reference_patch_combo)
+		# # refpatch_layout.addWidget(self.reference_patch_combo2)
+		# refpatchH_layout.addWidget(self.reference_patch_combo)
+		# refpatchH_layout.addWidget(self.reference_patch_combo2)
+		# self.reference_patch_combo.currentIndexChanged.connect(self.update_spectraplot)
+		# self.reference_patch_combo2.currentIndexChanged.connect(self.update_spectraplot)
+
+		# refpatch_layout.addLayout(refpatchH_layout)
+		# refpatch_layout.addWidget(self.show_refpatch)
+		# self.show_refpatch.stateChanged.connect(self.RefPatchcheckbox_state_changed)
+		# ui_layout.addLayout(refpatch_layout)
+		
+		# layout.addLayout(ui_layout)
+
+		# self.save_figures_button = QPushButton("Save Figures")
+		# rescale_image_layout.addWidget(self.save_figures_button)
+		# self.save_figures_button.clicked.connect(self.save_figures)
+
+
+		# # # Create ROI rectangles
+		# # self.roi_rect1 = Rectangle((0, 0), 50, 50, edgecolor='red', facecolor='none')
+		# # self.roi_rect2 = Rectangle((10, 10), 50, 50, edgecolor='cornflowerblue', facecolor='none')
+		# # self.rgb_canvas.figure.gca().add_patch(self.roi_rect1)
+		# # self.rgb_canvas.figure.gca().add_patch(self.roi_rect2)
+		# # self.roi_rect1.set_visible(True)
+		# # self.roi_rect2.set_visible(True)
+
+		# # Connect mouse events for ROI interaction
+		# self.rgb_canvas.mpl_connect('button_press_event', self.on_press)
+		# self.rgb_canvas.mpl_connect('motion_notify_event', self.on_motion)
+		# self.rgb_canvas.mpl_connect('button_release_event', self.on_release)
+
+		# self.dragging = False
+		# self.start_x = None
+		# self.start_y = None
+		# self.current_roi = None
+
+		# # Add attributes to hold references to image plots
+		# self.rgb_image_plot = None
+		# self.wavelength_image_plot = None
+
+		# self.ax_spectrum = self.spectrum_canvas.figure.add_subplot(111)
+		# self.ax_rgb = self.rgb_canvas.figure.add_subplot(111)
 
 		# # Create ROI rectangles
 		# self.roi_rect1 = Rectangle((0, 0), 50, 50, edgecolor='red', facecolor='none')
@@ -224,40 +429,15 @@ class MainWindow(QMainWindow):
 		# self.roi_rect1.set_visible(True)
 		# self.roi_rect2.set_visible(True)
 
-		# Connect mouse events for ROI interaction
-		self.rgb_canvas.mpl_connect('button_press_event', self.on_press)
-		self.rgb_canvas.mpl_connect('motion_notify_event', self.on_motion)
-		self.rgb_canvas.mpl_connect('button_release_event', self.on_release)
+		# self.action = None
 
-		self.dragging = False
-		self.start_x = None
-		self.start_y = None
-		self.current_roi = None
-
-		# Add attributes to hold references to image plots
-		self.rgb_image_plot = None
-		self.wavelength_image_plot = None
-
-		self.ax_spectrum = self.spectrum_canvas.figure.add_subplot(111)
-		self.ax_rgb = self.rgb_canvas.figure.add_subplot(111)
-
-		# Create ROI rectangles
-		self.roi_rect1 = Rectangle((0, 0), 50, 50, edgecolor='red', facecolor='none')
-		self.roi_rect2 = Rectangle((10, 10), 50, 50, edgecolor='cornflowerblue', facecolor='none')
-		self.rgb_canvas.figure.gca().add_patch(self.roi_rect1)
-		self.rgb_canvas.figure.gca().add_patch(self.roi_rect2)
-		self.roi_rect1.set_visible(True)
-		self.roi_rect2.set_visible(True)
-
-		self.action = None
-
-		# Initialize variables
-		self.hypercube = None
-		self.wavelengths = None
-		self.reference_spectra = None
-		self.IsThereCB = False
-		self.rescale_value = 1
-		self.rescale_spectra = 1
+		# # Initialize variables
+		# self.hypercube = None
+		# self.wavelengths = None
+		# self.reference_spectra = None
+		# self.IsThereCB = False
+		# self.rescale_value = 1
+		# self.rescale_spectra = 1
 
 	def ReshapeMatlabMatrix(self, mat):
 		YY, XX, NN = mat.shape
@@ -661,11 +841,11 @@ class MainWindow(QMainWindow):
 		im0 = np.clip(im0, 0, 1)
 		return im0
 
-	## Reszie figures as the GUI window is modified    
-	def resizeEvent(self, event):
-		new_size = event.size()
-		self.rgb_canvas.setGeometry(0, 0, int(new_size.width()/2), new_size.height() - 100)  # Adjust the height as needed
-		self.spectrum_canvas.setGeometry(int(new_size.width()/2), 0, int(new_size.width()/2), new_size.height() - 100)
+	# ## Reszie figures as the GUI window is modified    
+	# def resizeEvent(self, event):
+	# 	new_size = event.size()
+	# 	self.rgb_canvas.setGeometry(0, 0, int(new_size.width()/2), new_size.height() - 100)  # Adjust the height as needed
+	# 	self.spectrum_canvas.setGeometry(int(new_size.width()/2), 0, int(new_size.width()/2), new_size.height() - 100)
 
 
 	def on_press(self, event):
